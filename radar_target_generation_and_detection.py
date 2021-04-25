@@ -75,17 +75,21 @@ Tx = np.zeros(len(time_stamps))
 Rx = np.zeros(len(time_stamps))
 Mix = np.zeros(len(time_stamps))
 
-delay_time = 2 * target_distance / speed_of_light
+target_range = np.zeros(len(time_stamps))
+delay_time = np.zeros(len(time_stamps))
 
 for i in range(len(time_stamps)):
     time = time_stamps[i]
+
+    target_range[i] = target_distance * target_velocity * time
+    delay_time[i] = 2 * target_range[i] / speed_of_light
+
     Tx[i] = radar.transmit_signal(time)
-    Rx[i] = radar.receive_signal(time, delay_time)
-    range_freq = 2 * radar.get_slope() * target_distance / speed_of_light
-    doppler_freq = 2 * radar.fc * target_velocity / speed_of_light
-    Mix[i] = math.cos(2 * math.pi * (range_freq + doppler_freq) * time)
+    Rx[i] = radar.receive_signal(time, delay_time[i])
+    Mix[i] = Tx[i] * Rx[i]
 
 
-print(Mix)
-plt.plot(Mix)
+new_Mix = np.reshape(Mix, [number_of_samples_per_chirp, number_of_chirps])
+
+plt.plot(new_Mix)
 plt.show()
