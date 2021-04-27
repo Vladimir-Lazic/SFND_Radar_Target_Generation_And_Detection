@@ -14,7 +14,10 @@ clc;
 % *%TODO* :
 % define the target's initial position and velocity. Note : Velocity
 % remains contant
- 
+
+target_velocity = -20;
+initial_range = 110;
+speed_of_light = 3e8;
 
 
 %% FMCW Waveform Generation
@@ -23,7 +26,10 @@ clc;
 %Design the FMCW waveform by giving the specs of each of its parameters.
 % Calculate the Bandwidth (B), Chirp Time (Tchirp) and Slope (slope) of the FMCW
 % chirp using the requirements above.
-
+max_range = 200;
+Bsweep = speed_of_light / (2*1);
+Tchirp= 5.5 * (2 * max_range / speed_of_light);
+slope = Bsweep/Tchirp;
 
 %Operating carrier frequency of Radar 
 fc= 77e9;             %carrier freq
@@ -59,18 +65,20 @@ for i=1:length(t)
     
     % *%TODO* :
     %For each time stamp update the Range of the Target for constant velocity. 
-    
+    r_t(i) = initial_range + target_velocity * t(i);
+    td(i) = 2 * r_t(i) / speed_of_light;
     % *%TODO* :
     %For each time sample we need update the transmitted and
     %received signal. 
-    Tx(i) = 
-    Rx (i)  =
+    Tx(i) = cos(2*pi*(fc*t(i) + slope*(t(i)^2)/2 ));
+    delay = t(i) - td(i);
+    Rx (i) = cos(2*pi*( fc*delay + slope * (delay^2)/2));
     
     % *%TODO* :
     %Now by mixing the Transmit and Receive generate the beat signal
     %This is done by element wise matrix multiplication of Transmit and
     %Receiver Signal
-    Mix(i) = 
+    Mix(i) = Tx(i)*Rx(i);
     
 end
 
@@ -80,27 +88,29 @@ end
  % *%TODO* :
 %reshape the vector into Nr*Nd array. Nr and Nd here would also define the size of
 %Range and Doppler FFT respectively.
-
+Mix = reshape(Mix, [Nr, Nd]);
  % *%TODO* :
 %run the FFT on the beat signal along the range bins dimension (Nr) and
 %normalize.
-
+signal_fft = fft(Mix, Nr); 
+L = Tchirp * Bsweep;
  % *%TODO* :
 % Take the absolute value of FFT output
-
+signal_fft = abs(signal_fft/L);
  % *%TODO* :
 % Output of FFT is double sided signal, but we are interested in only one side of the spectrum.
 % Hence we throw out half of the samples.
-
-
-%plotting the range
-figure ('Name','Range from First FFT')
-subplot(2,1,1)
+signal_fft = signal_fft(1:L/2+1);
 
  % *%TODO* :
  % plot FFT output 
+f = Bsweep*(0:(L/2))/L;
+figure('Name','FFT Output')
+plot(f,signal_fft)
 
- 
+R = (speed_of_light*Tchirp*f)/(2*Bsweep);
+figure('Name','Range from First FFT')
+plot(R,signal_fft) 
 axis ([0 200 0 1]);
 
 
