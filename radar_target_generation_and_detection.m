@@ -1,4 +1,5 @@
 clear all
+close all;
 clc;
 
 %% Radar Specifications 
@@ -111,7 +112,7 @@ plot(f,signal_fft)
 R = (speed_of_light*Tchirp*f)/(2*Bsweep);
 figure('Name','Range from First FFT')
 plot(R,signal_fft) 
-axis ([0 200 0 1]);
+axis ([0 max_range 0 1]);
 
 
 
@@ -150,13 +151,18 @@ figure,surf(doppler_axis,range_axis,RDM);
 
 % *%TODO* :
 %Select the number of Training Cells in both the dimensions.
+Tr = 14;
+Td = 6;
 
 % *%TODO* :
 %Select the number of Guard Cells in both dimensions around the Cell under 
 %test (CUT) for accurate estimation
+Gr = 6;
+Gd = 3;
 
 % *%TODO* :
 % offset the threshold by SNR value in dB
+offset = 6;
 
 % *%TODO* :
 %Create a vector to store noise_level for each iteration on training cells
@@ -173,11 +179,34 @@ noise_level = zeros(1,1);
 %Further add the offset to it to determine the threshold. Next, compare the
 %signal under CUT with this threshold. If the CUT level > threshold assign
 %it a value of 1, else equate it to 0.
-
+number_of_cells = (2 * Tr + 2 * Gr + 1) * (2 * Td + 2 * Gd + 1) - (2 * Gr + 1) * (2 * Gd + 1);
+cfar_output = zeros(Nr /2 , Nd);
 
    % Use RDM[x,y] as the matrix from the output of 2D FFT for implementing
    % CFAR
-
+for i = 1:(Nr/2 - (2 * Gr + 2 * Tr))
+    for j = 1:(Nd - (2 * Gd + 2 * Td))
+        s1 = sum(db2pow(RDM(i : i + 2*Tr+2*Gr, j : j + 2*Td+2*Gd)) , "all");
+        s2 = sum(db2pow(RDM(i+Tr : i+Tr+2*Gr, j+Td : j + Td+2*Gd)) , "all");
+        
+        noise_level = s1 - s2;
+        
+        cfar_threshold = noise_level / number_of_cells;
+        cfar_threshold = pow2db(cfar_threshold) + offset;
+        cfar_threshold = db2pow(cfar_threshold);
+        
+        cut_level = db2pow(RDM(i + Tr + Gr, j + Td + Gd));
+        
+        if (cut_level <= cfar_threshold)
+            cut_level = 0;
+        else 
+            cut_level = 1;
+        end
+        
+        cfar_output(i + Tr + Gr, j + Td + Gd) = cut_level;
+        
+    end
+end
 
 
 
@@ -199,7 +228,7 @@ noise_level = zeros(1,1);
 % *%TODO* :
 %display the CFAR output using the Surf function like we did for Range
 %Doppler Response output.
-figure,surf(doppler_axis,range_axis,'replace this with output');
+figure,surf(doppler_axis,range_axis,cfar_output);
 colorbar;
 
 
